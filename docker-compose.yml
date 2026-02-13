@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: funkanban-db
+    environment:
+      POSTGRES_USER: kanban
+      POSTGRES_PASSWORD: kanban
+      POSTGRES_DB: kanban
+    volumes:
+      - funkanban_db_data:/var/lib/postgresql/data
+      # - ./db:/docker-entrypoint-initdb.d  # Commented out - will restore from backup
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanban"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funkanban-network
+
+  api:
+    build: ./backend
+    container_name: funkanban-api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://kanban:kanban@db:5432/kanban
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - funkanban-network
+
+  frontend:
+    build: ./frontend
+    container_name: funkanban-frontend
+    ports:
+      - "8847:80"
+    depends_on:
+      - api
+    networks:
+      - funkanban-network
+
+volumes:
+  funkanban_db_data:
+
+networks:
+  funkanban-network:
+    driver: bridge
